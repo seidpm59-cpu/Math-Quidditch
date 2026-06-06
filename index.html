@@ -82,6 +82,25 @@
   }
   select:focus,input:focus{border-color:var(--accent);box-shadow:0 0 10px var(--glow)}
   input[type="checkbox"]{accent-color:var(--sec)}
+  input[type="range"]{
+    accent-color:var(--sec);
+    cursor:pointer;
+  }
+  .sliderLabel{
+    min-width:210px;
+    background:rgba(42,31,14,.42);
+    border:1px solid rgba(245,200,66,.14);
+    border-radius:12px;
+    padding:7px 10px;
+  }
+  .sliderLabel input{width:92px;}
+  .sliderValue{
+    font-family:'Space Mono',monospace;
+    color:var(--sec);
+    font-weight:700;
+    min-width:34px;
+    text-align:right;
+  }
   button{
     border:1px solid rgba(245,200,66,.25);
     background:linear-gradient(135deg, color-mix(in srgb, var(--pri) 68%, #120900 32%), color-mix(in srgb, var(--sec) 62%, #1b1000 38%));
@@ -199,17 +218,21 @@
       <label>Round Time:
         <input id="roundSec" type="number" min="10" max="999" value="300" style="width:90px"> sec
       </label>
+      <label class="sliderLabel">Quaffle Speed:
+        <input id="quaffleSpeed" type="range" min="0.5" max="2.5" step="0.1" value="1">
+        <span class="sliderValue" id="quaffleSpeedVal">1.0×</span>
+      </label>
     </div>
 
     <div class="row">
       <label>Mode:
         <select id="mode">
-          <option value="mul">Multiplication</option>
+          <option value="mul" selected>Multiplication</option>
           <option value="div">Division</option>
           <option value="addsub">Add/Sub</option>
           <option value="zero">Zero Facts (×0 & 0÷N)</option>
           <option value="tens">Tens Facts (×10 & ÷10)</option>
-          <option value="mixed4" selected>Mixed Spells (+, −, ×, ÷)</option>
+          <option value="mixed4">Mixed Spells (+, −, ×, ÷)</option>
         </select>
       </label>
 
@@ -334,6 +357,7 @@ function applyTheme(h){
 const els = {
   pHouse: $('playerHouse'), rHouse: $('rivalHouse'),
   rivalAcc: $('rivalAcc'), roundSec: $('roundSec'),
+  quaffleSpeed: $('quaffleSpeed'), quaffleSpeedVal: $('quaffleSpeedVal'),
   mode: $('mode'),
   mulDiff: $('mulDiff'),
   divDiff: $('divDiff'),
@@ -607,6 +631,18 @@ function celebrate(n,c1,c2){
 
 /* ===== Drifting Quaffle ===== */
 let qx=80,qy=80,vx=1.0,vy=0.9,driftID=null;
+function getQuaffleSpeed(){
+  return Math.max(0.5, Math.min(2.5, parseFloat(els.quaffleSpeed.value || '1')));
+}
+function updateQuaffleSpeedLabel(){
+  els.quaffleSpeedVal.textContent = `${getQuaffleSpeed().toFixed(1)}×`;
+}
+function setQuaffleVelocityForSlider(){
+  const current = Math.hypot(vx, vy) || 1;
+  const target = 1.35 * getQuaffleSpeed();
+  vx = (vx / current) * target;
+  vy = (vy / current) * target;
+}
 function startDrift(){
   cancelDrift();
   function step(){
@@ -635,8 +671,9 @@ function resetBoard(){
   const w = els.field.clientWidth, h = els.field.clientHeight, pad = 10, size=54;
   qx = randInt(pad, Math.max(pad, w - size - pad));
   qy = randInt(pad, Math.max(pad, h - size - pad));
-  vx = (Math.random()<0.5?-1:1)*(0.7+Math.random()*1.1);
-  vy = (Math.random()<0.5?-1:1)*(0.7+Math.random()*1.1);
+  const speed = getQuaffleSpeed();
+  vx = (Math.random()<0.5?-1:1)*(0.7+Math.random()*1.1)*speed;
+  vy = (Math.random()<0.5?-1:1)*(0.7+Math.random()*1.1)*speed;
   els.quaffle.style.left = qx+'px';
   els.quaffle.style.top  = qy+'px';
   els.quaffle.style.display = 'block';
@@ -804,6 +841,10 @@ function updateModeUI(){
   if(state.running){ resetBoard(); }
 }
 els.mode.addEventListener('change', updateModeUI);
+els.quaffleSpeed.addEventListener('input', ()=>{
+  updateQuaffleSpeedLabel();
+  setQuaffleVelocityForSlider();
+});
 
 /* ===== Reporting helpers ===== */
 function toCSV(rows){
@@ -881,6 +922,7 @@ els.clearHistoryBtn.addEventListener('click', ()=>{
 
 /* ===== Init ===== */
 applyTheme('gry');
+updateQuaffleSpeedLabel();
 try {
   const saved = JSON.parse(localStorage.getItem('quidditch_results')||'[]');
   if(Array.isArray(saved)) results = saved;
