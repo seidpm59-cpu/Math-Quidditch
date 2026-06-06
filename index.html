@@ -3,103 +3,177 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Quidditch Math — Multiplication • Division • Add/Sub (Field, Voice, Drift)</title>
+<title>Quidditch Math — Wizarding Arithmetic Match</title>
 <style>
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Space+Mono:wght@400;700&display=swap');
   :root{
     --gry-1:#ae0001; --gry-2:#d3a625;
     --sly-1:#1a472a; --sly-2:#5d8f6a;
     --rav-1:#0e1a40; --rav-2:#5a7ec2;
     --huf-1:#ecb939; --huf-2:#372e29;
-    --pri:#ae0001; --sec:#d3a625; --bg:#0b0e17; --ink:#eef3ff;
+    --pri:#ae0001; --sec:#d3a625;
+    --bg:#0e0b07; --panel:#1c1408; --panel2:#221a0a;
+    --ink:#f0e6c8; --muted:#9b8a66; --border:#3d2e14;
+    --accent:#f5c842; --accent2:#c8a84b; --teal:#4ec9b0; --glow:rgba(245,200,66,.32);
   }
   *{box-sizing:border-box}
   html,body{
-    height:100%;
+    min-height:100%;
     margin:0;
-    font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial;
+    font-family:'Crimson Text', Georgia, serif;
+    background-color:var(--bg);
     background-image:
-      radial-gradient(1200px 600px at 20% -10%,
-        rgba(27,37,73,0.55) 0%,
-        rgba(11,14,23,0.80) 60%),
+      radial-gradient(ellipse at 20% 10%, rgba(80,40,10,.52) 0%, transparent 50%),
+      radial-gradient(ellipse at 82% 92%, rgba(60,30,5,.44) 0%, transparent 50%),
+      linear-gradient(180deg, rgba(14,11,7,.88), rgba(14,11,7,.72)),
       url('hpc.jpg');
-    background-size: 1200px 600px, cover;
-    background-position: 20% -10%, center;
-    background-repeat: no-repeat, no-repeat;
-    background-attachment: fixed, fixed;
-    background-blend-mode: lighten;
-    filter: brightness(1.15) contrast(1.05);
+    background-size:auto, auto, auto, cover;
+    background-position:center, center, center, center;
+    background-repeat:no-repeat, no-repeat, no-repeat, no-repeat;
+    background-attachment:fixed, fixed, fixed, fixed;
     color:var(--ink);
+    overflow-x:hidden;
   }
-  .wrap{max-width:1100px;margin:24px auto;padding:16px}
-  .card{background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.02));
-        border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:18px;box-shadow:0 10px 28px rgba(0,0,0,.35)}
-  h1{margin:0 0 8px;font-weight:900;letter-spacing:.3px}
-  .subtitle{opacity:.9;margin:0 0 12px}
-  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-  select,input[type="number"],input[type="text"]{border:1px solid rgba(255,255,255,.2);background:#111827;color:var(--ink);border-radius:10px;padding:8px 10px}
-  button{border:1px solid rgba(255,255,255,.18);background:color-mix(in srgb, var(--pri) 65%, black 35%);color:#fff;padding:10px 14px;border-radius:12px;cursor:pointer;font-weight:800}
-  button:hover{filter:brightness(1.06)}
-  button:disabled{opacity:.5;cursor:not-allowed}
-  label{display:flex;gap:8px;align-items:center}
-  .scoreboard{display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin:12px 0;padding:10px;border:1px solid rgba(255,255,255,.15);border-radius:12px;background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.01))}
-  .houseTag{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.15)}
-  .badge{width:14px;height:14px;border-radius:50%}
-  .score{font-size:24px;font-weight:900;min-width:40px;text-align:center}
+  body::before{
+    content:'✦ ✧ ⋆ ✦ ✧ ⋆ ✦ ✧ ⋆ ✦ ✧ ⋆';
+    position:fixed; top:0; left:0; right:0;
+    font-size:.72rem; color:rgba(245,200,66,.13);
+    letter-spacing:3vw; line-height:3;
+    pointer-events:none; z-index:0;
+    animation:driftStars 32s linear infinite;
+    white-space:nowrap; overflow:hidden;
+  }
+  body::after{
+    content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+    background:radial-gradient(circle at 50% 0%, rgba(245,200,66,.08), transparent 36%),
+               radial-gradient(circle at 15% 70%, rgba(78,201,176,.05), transparent 28%);
+  }
+  @keyframes driftStars{from{transform:translateX(0)}to{transform:translateX(-50%)}}
 
-  /* Stadium split: Field (top) + Panels (bottom) */
-  #stadium{display:flex;flex-direction:column;gap:10px;min-height:360px;margin-top:14px}
-  #field{
+  .wrap{max-width:1100px;margin:22px auto;padding:16px;position:relative;z-index:1}
+  .card{
     position:relative;
-    height:180px;
-    border:1px dashed rgba(255,255,255,.25);
-    border-radius:14px;
-    background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.015));
+    background:linear-gradient(180deg,rgba(34,26,10,.96),rgba(28,20,8,.94));
+    border:1px solid var(--border); border-radius:18px; padding:22px;
+    box-shadow:inset 0 1px 0 rgba(245,200,66,.08), 0 14px 34px rgba(0,0,0,.48), 0 0 36px rgba(245,200,66,.05);
     overflow:hidden;
   }
-  #quaffle{
-    position:absolute; left:80px; top:80px;
-    width:54px;height:54px;border-radius:50%;
-    background:radial-gradient(circle at 30% 30%, #d87c3f, #8b3f1c);
-    display:flex;align-items:center;justify-content:center;
-    font-size:24px;cursor:pointer;user-select:none;
-    box-shadow:0 4px 12px rgba(0,0,0,.35);
-    transition:box-shadow .2s;
+  .card::before{
+    content:''; position:absolute; inset:0; border-radius:18px;
+    background:linear-gradient(135deg, rgba(245,200,66,.055), transparent 46%, rgba(78,201,176,.035));
+    pointer-events:none;
   }
-  #quaffle:hover{box-shadow:0 0 12px 4px rgba(255,200,120,.6);}
+  .card>*{position:relative;z-index:1}
+
+  .site-header{display:flex;flex-direction:column;align-items:center;text-align:center;margin:2px 0 18px}
+  .owl-icon{font-size:3.2rem;filter:drop-shadow(0 0 12px rgba(245,200,66,.55));animation:hoverOwl 4s ease-in-out infinite;margin-bottom:4px}
+  @keyframes hoverOwl{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-7px) rotate(2deg)}}
+  h1{margin:0 0 4px;font-family:'Cinzel',serif;font-weight:900;letter-spacing:3px;color:var(--accent);font-size:clamp(1.55rem,4vw,2.55rem);text-shadow:0 0 22px var(--glow)}
+  .house-rule{width:min(360px,72vw);height:2px;background:linear-gradient(90deg,transparent,var(--sec),var(--accent),transparent);opacity:.75;margin:10px auto 0}
+  .subtitle{margin:0 0 16px;color:#d4c49a;font-size:1.05rem;line-height:1.55;text-align:center;font-style:italic}
+  strong{color:var(--accent2)}
+
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+  label{display:flex;gap:8px;align-items:center;color:#d8ca9f;font-family:'Cinzel',serif;font-size:.78rem;letter-spacing:.4px}
+  select,input[type="number"],input[type="text"]{
+    border:1px solid rgba(245,200,66,.23); background:#2a1f0e; color:var(--ink);
+    border-radius:9px; padding:9px 11px; font-family:'Space Mono',monospace;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.035); outline:none;
+  }
+  select:focus,input:focus{border-color:var(--accent);box-shadow:0 0 10px var(--glow)}
+  input[type="checkbox"]{accent-color:var(--sec)}
+  button{
+    border:1px solid rgba(245,200,66,.25);
+    background:linear-gradient(135deg, color-mix(in srgb, var(--pri) 68%, #120900 32%), color-mix(in srgb, var(--sec) 62%, #1b1000 38%));
+    color:#fff8db; padding:10px 14px; border-radius:10px; cursor:pointer;
+    font-family:'Cinzel',serif; font-weight:800; letter-spacing:.45px;
+    box-shadow:0 3px 10px rgba(0,0,0,.36), inset 0 1px 0 rgba(255,255,255,.09);
+    transition:transform .15s, filter .15s, box-shadow .15s;
+  }
+  button:hover{filter:brightness(1.08);transform:translateY(-1px);box-shadow:0 0 16px var(--glow), 0 4px 12px rgba(0,0,0,.4)}
+  button:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
+
+  .scoreboard{
+    display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin:16px 0;padding:12px;
+    border:1px solid rgba(245,200,66,.18);border-radius:14px;
+    background:rgba(245,200,66,.045);
+    box-shadow:inset 0 1px 0 rgba(245,200,66,.05);
+    font-family:'Crimson Text',serif;
+  }
+  .houseTag{display:flex;align-items:center;gap:8px;padding:7px 11px;border-radius:999px;border:1px solid rgba(245,200,66,.18);background:rgba(0,0,0,.18)}
+  .badge{width:14px;height:14px;border-radius:50%;box-shadow:0 0 10px currentColor}
+  .score{font-family:'Space Mono',monospace;font-size:24px;font-weight:900;min-width:40px;text-align:center;color:var(--accent);text-shadow:0 0 10px var(--glow)}
+
+  /* Stadium split: Field (top) + Panels (bottom) */
+  #stadium{display:flex;flex-direction:column;gap:12px;min-height:360px;margin-top:14px}
+  #field{
+    position:relative; height:190px; border:1px dashed rgba(245,200,66,.32); border-radius:16px;
+    background:
+      radial-gradient(circle at 50% 50%, rgba(245,200,66,.08), transparent 42%),
+      linear-gradient(180deg,rgba(0,0,0,.22),rgba(0,0,0,.32));
+    overflow:hidden; box-shadow:inset 0 0 28px rgba(0,0,0,.45), inset 0 0 18px rgba(245,200,66,.045);
+  }
+  #field::before{
+    content:'';position:absolute;inset:12px;border:1px solid rgba(245,200,66,.13);border-radius:12px;pointer-events:none;
+  }
+  #field::after{
+    content:'✦';position:absolute;right:18px;top:12px;color:rgba(245,200,66,.25);font-size:1.35rem;pointer-events:none;
+  }
+  #quaffle{
+    position:absolute; left:80px; top:80px; width:54px;height:54px;border-radius:50%;
+    background:radial-gradient(circle at 30% 30%, #ef9d54, #8b3f1c 68%);
+    display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer;user-select:none;
+    box-shadow:0 4px 12px rgba(0,0,0,.44), 0 0 18px rgba(245,200,66,.18);
+    transition:box-shadow .2s, transform .2s;
+  }
+  #quaffle:hover{box-shadow:0 0 14px 5px rgba(255,200,120,.65);transform:scale(1.04)}
 
   .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-  .panel{position:relative;border:1px solid rgba(255,255,255,.15);border-radius:12px;padding:12px;background:linear-gradient(180deg,rgba(255,255,255,.02),rgba(255,255,255,.01))}
-  .icons{display:flex;flex-wrap:wrap;gap:8px;min-height:120px}
-  .item{opacity:0;transform:translateY(8px) scale(.9);animation:pop .45s cubic-bezier(.2,.6,.2,1) forwards}
+  .panel{
+    position:relative;border:1px solid rgba(245,200,66,.18);border-radius:14px;padding:14px;
+    background:linear-gradient(180deg,rgba(42,31,14,.86),rgba(28,20,8,.86));
+    box-shadow:inset 0 1px 0 rgba(245,200,66,.055), 0 5px 16px rgba(0,0,0,.28);
+  }
+  .panel::before{content:'';position:absolute;inset:0;border-radius:14px;background:linear-gradient(135deg,rgba(245,200,66,.035),transparent 55%);pointer-events:none}
+  .panel>*{position:relative;z-index:1}
+  .icons{display:flex;flex-wrap:wrap;gap:8px;min-height:120px;padding-top:6px}
+  .item{opacity:0;transform:translateY(8px) scale(.9);animation:pop .45s cubic-bezier(.2,.6,.2,1) forwards;filter:drop-shadow(0 0 5px rgba(245,200,66,.25))}
   @keyframes pop{to{opacity:1;transform:translateY(0) scale(1)}}
-  .eqn{font-size:18px;color:var(--sec)}
-  .small{font-size:12px;opacity:.8}
+  .eqn{font-family:'Cinzel',serif;font-size:1.15rem;line-height:1.45;color:var(--accent);letter-spacing:.4px;margin-bottom:10px;text-shadow:0 0 12px rgba(245,200,66,.12)}
+  .small{font-size:.95rem;color:var(--muted);min-height:1.25em;font-style:italic}
   svg.icon{width:34px;height:34px}
   .hidden{display:none !important;}
 
   /* iPad/mobile answer-box tuning: keep the field compact and avoid iOS zoom. */
   #answer{
-    width:260px;
-    max-width:55vw;
-    font-size:16px; /* 16px prevents iOS Safari from zooming the page when focused */
+    width:260px; max-width:55vw; font-size:16px; /* 16px prevents iOS Safari from zooming the page when focused */
+    text-align:center; border-width:2px;
   }
   #cast{white-space:nowrap;}
   @media (max-width: 820px){
     .wrap{margin:8px auto;padding:8px}
-    .card{padding:12px}
-    #field{height:150px}
+    .card{padding:14px}
+    #field{height:155px}
     .grid{grid-template-columns:1fr}
     #answer{width:150px;max-width:48vw;padding:9px 8px}
     .panel .row{gap:6px}
+    label{font-size:.74rem}
   }
   @media (hover:none) and (pointer:coarse){
     #answer{width:135px;max-width:46vw}
+    button:hover{transform:none}
   }
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="card">
+    <div class="site-header">
+      <div class="owl-icon">🦉</div>
+      <h1>Quidditch Math</h1>
+      <div class="subtitle">A Wizarding Arithmetic Match</div>
+      <div class="house-rule"></div>
+    </div>
     <p class="subtitle">Catch the Quaffle in the top field, then answer to score. Choose <strong>Multiplication</strong>, <strong>Division</strong> (whole-number answers), <strong>Add/Sub</strong>, or <strong>Mixed Spells</strong> across +, −, ×, and ÷. Includes <strong>Zero Facts</strong> and <strong>Tens Facts</strong> modes.</p>
 
     <div class="row">
