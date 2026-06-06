@@ -483,6 +483,8 @@ let state = {
   q:{type:'mul', a:null,b:null,op:'mul',text:'',ans:null, askedAt:null},
   rivalTimer:null, tick:null,
   quaffleFreeAt:0,
+  rivalStealChance:0.38,
+  rivalFastGrab:false,
   warned60:false, warned30:false, warned10:false
 };
 let results = []; // log of attempts
@@ -766,8 +768,10 @@ function resetBoard(){
   els.quaffle.style.display = 'block';
 
   // Give the player a randomized grace window before the rival can steal.
-  // Most resets provide a fair opening; a few are intentionally quick for suspense.
-  const rivalGraceMs = (Math.random() < 0.18) ? randInt(700, 1400) : randInt(2200, 5200);
+  // About one-third of resets use a short, high-pressure window; the rest stay generous.
+  state.rivalFastGrab = Math.random() < 0.33;
+  const rivalGraceMs = state.rivalFastGrab ? randInt(550, 1200) : randInt(2200, 5200);
+  state.rivalStealChance = state.rivalFastGrab ? 0.78 : 0.38;
   state.quaffleFreeAt = performance.now() + rivalGraceMs;
 
   startDrift();
@@ -860,11 +864,11 @@ function startTimers(){
   state.rivalTimer = window.setInterval(()=>{
     if(!state.running) return;
     if(state.possession==='-' && performance.now() >= state.quaffleFreeAt){
-      // After the grace window, the rival only sometimes snatches it,
-      // so the player usually gets a real chance to catch the Quaffle.
-      if(Math.random()<0.38){ giveQuaffle('Rival'); cancelDrift(); }
+      // After the grace window, the rival only sometimes snatches it.
+      // Fast-grab rounds are intentionally more dangerous, but not automatic.
+      if(Math.random() < state.rivalStealChance){ giveQuaffle('Rival'); cancelDrift(); }
     }
-  }, 1200);
+  }, 750);
 }
 function stopTimers(){ clearInterval(state.tick); clearInterval(state.rivalTimer); state.tick = state.rivalTimer = null; }
 
@@ -986,9 +990,8 @@ function download(filename, text){
 /* ===== Wire up ===== */
 els.start.addEventListener('click', startMatch);
 els.stop.addEventListener('click', endMatch);
-els.field.addEventListener('pointerdown', e=>{ if(e.target!==els.quaffle) makeFieldRipple(e, false); });
-els.quaffle.addEventListener('pointerdown', e=>{ makeFieldRipple(e, true); flashQuaffleCatch(); });
-els.quaffle.addEventListener('click', e=>{ if(state.running && state.possession==='-'){ giveQuaffle('Player'); cancelDrift(); }});
+els.field.addEventListener('pointerdown', e=>{ makeFieldRipple(e, e.target===els.quaffle); });
+els.quaffle.addEventListener('click', e=>{ if(state.running && state.possession==='-'){ makeFieldRipple(e, true); flashQuaffleCatch(); giveQuaffle('Player'); cancelDrift(); }});
 els.cast.addEventListener('click', playerShoot);
 els.answer.addEventListener('keydown', e=>{ if(e.key==='Enter'){ playerShoot(); }});
 
