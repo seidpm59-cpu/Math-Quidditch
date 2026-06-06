@@ -76,6 +76,25 @@
   .small{font-size:12px;opacity:.8}
   svg.icon{width:34px;height:34px}
   .hidden{display:none !important;}
+
+  /* iPad/mobile answer-box tuning: keep the field compact and avoid iOS zoom. */
+  #answer{
+    width:260px;
+    max-width:55vw;
+    font-size:16px; /* 16px prevents iOS Safari from zooming the page when focused */
+  }
+  #cast{white-space:nowrap;}
+  @media (max-width: 820px){
+    .wrap{margin:8px auto;padding:8px}
+    .card{padding:12px}
+    #field{height:150px}
+    .grid{grid-template-columns:1fr}
+    #answer{width:150px;max-width:48vw;padding:9px 8px}
+    .panel .row{gap:6px}
+  }
+  @media (hover:none) and (pointer:coarse){
+    #answer{width:135px;max-width:46vw}
+  }
 </style>
 </head>
 <body>
@@ -206,7 +225,7 @@
         <div class="panel">
           <div class="eqn" id="question">No question—catch the Quaffle first.</div>
           <div class="row">
-            <input id="answer" type="text" placeholder="Type the answer (e.g., 12 or 3x4; 12/3; 300+200; 'eight minus five')" />
+            <input id="answer" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" autocorrect="off" autocapitalize="off" enterkeyhint="done" placeholder="Answer" />
             <button id="cast">Shoot!</button>
           </div>
           <div id="feedback" class="small"></div>
@@ -328,6 +347,7 @@ function nowISO(){ return new Date().toISOString(); }
 /* ===== Text/Parsing helpers ===== */
 function fmtTime(s){ s=Math.max(0, s|0); const m=(s/60|0).toString().padStart(2,'0'); const ss=(s%60).toString().padStart(2,'0'); return `${m}:${ss}`; }
 function randInt(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
+function isTouchDevice(){ return window.matchMedia && window.matchMedia("(hover: none) and (pointer: coarse)").matches; }
 function normalize(s){
   if(!s) return '';
   s = s.toLowerCase()
@@ -556,7 +576,8 @@ function giveQuaffle(to){
     const speakLine = `You have seized the Quaffle. ${spellQuestionLine(state.q)}`;
     els.question.textContent = `You caught the Quaffle! What is ${state.q.text}?`;
     if(els.annQ.checked) sayQ(speakLine);
-    els.answer.focus();
+    // On iPad/tablets, do not summon the large keyboard automatically; let the player tap the box when ready.
+    if(!isTouchDevice()) els.answer.focus();
   }else if(to==='Rival'){
     state.q = newQuestion();
     els.question.textContent = `${HOUSE[state.rival.house].name} caught the Quaffle…`;
@@ -581,6 +602,8 @@ function rivalShoot(){
 function playerShoot(){
   if(!state.running || state.possession!=='Player') return;
   const raw = els.answer.value;
+  // Dismiss the iPad keyboard immediately after each shot.
+  els.answer.blur();
   const val = parseAnswer(raw);
   const correct = (val===state.q.ans);
   const elapsedMs = state.q.askedAt ? Math.max(0, Math.round(performance.now() - state.q.askedAt)) : null;
@@ -691,17 +714,17 @@ function updateModeUI(){
 
   // Placeholder hints
   if(isMul){
-    els.answer.placeholder = "Type the answer (e.g., 12) or '3x4' / 'three by four' / 'tres por cuatro'";
+    els.answer.placeholder = "Type just the answer, e.g., 12";
   }else if(isDiv){
-    els.answer.placeholder = "Type the answer (e.g., 4) or '12/3' / 'twelve divided by three' / 'doce entre tres'";
+    els.answer.placeholder = "Type just the answer, e.g., 4";
   }else if(isZero){
-    els.answer.placeholder = "Zero Facts: answers are 0. Examples: '7x0', '0/5'";
+    els.answer.placeholder = "Zero Facts: type 0";
   }else if(isTens){
-    els.answer.placeholder = "Tens Facts: ×10 or ÷10. Examples: '3x10'=30, '40/10'=4";
+    els.answer.placeholder = "Tens Facts: type just the answer";
   }else if(isMixed){
-    els.answer.placeholder = "Mixed Spells: +, −, ×, or ÷. Type just the answer, or use forms like '3x4', '40/10', '8 minus 5'.";
+    els.answer.placeholder = "Mixed Spells: type just the answer";
   }else{
-    els.answer.placeholder = "Type the answer (e.g., 500) or '300+200' / 'eight minus five'";
+    els.answer.placeholder = "Type just the answer, e.g., 500";
   }
 
   if(state.running){ resetBoard(); }
