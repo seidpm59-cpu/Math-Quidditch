@@ -1,0 +1,794 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Quidditch Math — Multiplication • Division • Add/Sub (Field, Voice, Drift)</title>
+<style>
+  :root{
+    --gry-1:#ae0001; --gry-2:#d3a625;
+    --sly-1:#1a472a; --sly-2:#5d8f6a;
+    --rav-1:#0e1a40; --rav-2:#5a7ec2;
+    --huf-1:#ecb939; --huf-2:#372e29;
+    --pri:#ae0001; --sec:#d3a625; --bg:#0b0e17; --ink:#eef3ff;
+  }
+  *{box-sizing:border-box}
+  html,body{
+    height:100%;
+    margin:0;
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial;
+    background-image:
+      radial-gradient(1200px 600px at 20% -10%,
+        rgba(27,37,73,0.55) 0%,
+        rgba(11,14,23,0.80) 60%),
+      url('hpc.jpg');
+    background-size: 1200px 600px, cover;
+    background-position: 20% -10%, center;
+    background-repeat: no-repeat, no-repeat;
+    background-attachment: fixed, fixed;
+    background-blend-mode: lighten;
+    filter: brightness(1.15) contrast(1.05);
+    color:var(--ink);
+  }
+  .wrap{max-width:1100px;margin:24px auto;padding:16px}
+  .card{background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.02));
+        border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:18px;box-shadow:0 10px 28px rgba(0,0,0,.35)}
+  h1{margin:0 0 8px;font-weight:900;letter-spacing:.3px}
+  .subtitle{opacity:.9;margin:0 0 12px}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  select,input[type="number"],input[type="text"]{border:1px solid rgba(255,255,255,.2);background:#111827;color:var(--ink);border-radius:10px;padding:8px 10px}
+  button{border:1px solid rgba(255,255,255,.18);background:color-mix(in srgb, var(--pri) 65%, black 35%);color:#fff;padding:10px 14px;border-radius:12px;cursor:pointer;font-weight:800}
+  button:hover{filter:brightness(1.06)}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  label{display:flex;gap:8px;align-items:center}
+  .scoreboard{display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin:12px 0;padding:10px;border:1px solid rgba(255,255,255,.15);border-radius:12px;background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.01))}
+  .houseTag{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.15)}
+  .badge{width:14px;height:14px;border-radius:50%}
+  .score{font-size:24px;font-weight:900;min-width:40px;text-align:center}
+
+  /* Stadium split: Field (top) + Panels (bottom) */
+  #stadium{display:flex;flex-direction:column;gap:10px;min-height:360px;margin-top:14px}
+  #field{
+    position:relative;
+    height:180px;
+    border:1px dashed rgba(255,255,255,.25);
+    border-radius:14px;
+    background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.015));
+    overflow:hidden;
+  }
+  #quaffle{
+    position:absolute; left:80px; top:80px;
+    width:54px;height:54px;border-radius:50%;
+    background:radial-gradient(circle at 30% 30%, #d87c3f, #8b3f1c);
+    display:flex;align-items:center;justify-content:center;
+    font-size:24px;cursor:pointer;user-select:none;
+    box-shadow:0 4px 12px rgba(0,0,0,.35);
+    transition:box-shadow .2s;
+  }
+  #quaffle:hover{box-shadow:0 0 12px 4px rgba(255,200,120,.6);}
+
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .panel{position:relative;border:1px solid rgba(255,255,255,.15);border-radius:12px;padding:12px;background:linear-gradient(180deg,rgba(255,255,255,.02),rgba(255,255,255,.01))}
+  .icons{display:flex;flex-wrap:wrap;gap:8px;min-height:120px}
+  .item{opacity:0;transform:translateY(8px) scale(.9);animation:pop .45s cubic-bezier(.2,.6,.2,1) forwards}
+  @keyframes pop{to{opacity:1;transform:translateY(0) scale(1)}}
+  .eqn{font-size:18px;color:var(--sec)}
+  .small{font-size:12px;opacity:.8}
+  svg.icon{width:34px;height:34px}
+  .hidden{display:none !important;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <p class="subtitle">Catch the Quaffle in the top field, then answer to score. Choose <strong>Multiplication</strong>, <strong>Division</strong> (whole-number answers), <strong>Add/Sub</strong>, or <strong>Mixed Spells</strong> across +, −, ×, and ÷. Includes <strong>Zero Facts</strong> and <strong>Tens Facts</strong> modes.</p>
+
+    <div class="row">
+      <label>Player House:
+        <select id="playerHouse">
+          <option value="gry">Gryffindor</option>
+          <option value="sly">Slytherin</option>
+          <option value="rav">Ravenclaw</option>
+          <option value="huf">Hufflepuff</option>
+        </select>
+      </label>
+      <label>Rival House:
+        <select id="rivalHouse">
+          <option value="sly">Slytherin</option>
+          <option value="rav">Ravenclaw</option>
+          <option value="huf">Hufflepuff</option>
+          <option value="gry">Gryffindor</option>
+        </select>
+      </label>
+      <label>Rival Accuracy:
+        <input id="rivalAcc" type="number" min="0" max="100" value="4" style="width:80px"> %
+      </label>
+      <label>Round Time:
+        <input id="roundSec" type="number" min="10" max="999" value="300" style="width:90px"> sec
+      </label>
+    </div>
+
+    <div class="row">
+      <label>Mode:
+        <select id="mode">
+          <option value="mul" selected>Multiplication</option>
+          <option value="div">Division</option>
+          <option value="addsub">Add/Sub</option>
+          <option value="zero">Zero Facts (×0 & 0÷N)</option>
+          <option value="tens">Tens Facts (×10 & ÷10)</option>
+          <option value="mixed4">Mixed Spells (+, −, ×, ÷)</option>
+        </select>
+      </label>
+
+      <!-- Multiplication difficulty -->
+      <label id="mulBox">Difficulty:
+        <select id="mulDiff">
+          <option value="5">Beginner (×1–5)</option>
+          <option value="10" selected>Intermediate (×1–10)</option>
+          <option value="12">Full (×1–12)</option>
+        </select>
+      </label>
+
+      <!-- Division difficulty -->
+      <label id="divBox" class="hidden">Div. Difficulty:
+        <select id="divDiff">
+          <option value="5">Facts (÷1–5)</option>
+          <option value="10" selected>Facts (÷1–10)</option>
+          <option value="12">Facts (÷1–12)</option>
+        </select>
+      </label>
+
+      <!-- Tens Facts difficulty (new) -->
+      <label id="tensBox" class="hidden">Tens Difficulty:
+        <select id="tensDiff">
+          <option value="5">×/÷ by 10 (1–5)</option>
+          <option value="10" selected>×/÷ by 10 (1–10)</option>
+          <option value="12">×/÷ by 10 (1–12)</option>
+        </select>
+      </label>
+
+
+
+      <!-- Mixed operations difficulty -->
+      <label id="mixedBox" class="hidden">Mixed Difficulty:
+        <select id="mixedDiff">
+          <option value="1" selected>Apprentice (0–10, ×/÷ 1–5)</option>
+          <option value="2">Adept (0–50, ×/÷ 1–10)</option>
+          <option value="3">Archmage (0–100, ×/÷ 1–12)</option>
+        </select>
+      </label>
+
+      <!-- Add/Sub options -->
+      <label id="opBox" class="hidden">Operation:
+        <select id="op">
+          <option value="add">Addition</option>
+          <option value="sub">Subtraction</option>
+          <option value="mix" selected>Mixed (+ / −)</option>
+        </select>
+      </label>
+      <label id="rangeBox" class="hidden">Numbers:
+        <select id="range">
+          <option value="20" selected>Beginner (0–20)</option>
+          <option value="100">Up to 100 (0–100)</option>
+          <option value="hundreds">Easy Hundreds (100s only)</option>
+        </select>
+      </label>
+
+      <label><input type="checkbox" id="annPlay" checked> Announce play-by-play</label>
+      <label><input type="checkbox" id="annQ" checked> Announce questions/results</label>
+      <label>Voice:
+        <select id="voiceSel"><option value="">Default</option></select>
+      </label>
+      <label>Rate <input id="rate" type="number" min="0.5" max="1.5" step="0.05" value="1.0" style="width:70px"></label>
+
+      <button id="startBtn">🏁 Start Match</button>
+      <button id="stopBtn" disabled>⛔ Stop</button>
+
+      <!-- Reporting buttons (unchanged) -->
+      <button id="exportCsvBtn" title="Download a CSV of attempts">⬇️ Export CSV</button>
+      <button id="copyReportBtn" title="Copy a text summary to clipboard">📋 Copy Report</button>
+      <button id="emailReportBtn" title="Open email draft with summary">✉️ Email Report</button>
+      <button id="clearHistoryBtn" title="Erase saved results">🧹 Clear History</button>
+    </div>
+
+    <div class="scoreboard">
+      <div class="houseTag"><span class="badge" id="pBadge"></span> <span id="pName">Gryffindor</span> Score: <span class="score" id="pScore">0</span></div>
+      <div class="houseTag"><span class="badge" id="rBadge"></span> <span id="rName">Slytherin</span> Score: <span class="score" id="rScore">0</span></div>
+      <div>⏱️ Time Left: <strong id="timer">00:00</strong></div>
+      <div>Possession: <span class="possession" id="pos">–</span></div>
+    </div>
+
+    <div class="stadium" id="stadium">
+      <div id="field">
+        <div id="quaffle" title="Catch me!">🧶</div>
+      </div>
+      <div class="grid">
+        <div class="panel">
+          <div class="eqn" id="question">No question—catch the Quaffle first.</div>
+          <div class="row">
+            <input id="answer" type="text" placeholder="Type the answer (e.g., 12 or 3x4; 12/3; 300+200; 'eight minus five')" />
+            <button id="cast">Shoot!</button>
+          </div>
+          <div id="feedback" class="small"></div>
+        </div>
+        <div class="panel">
+          <div><strong>Celebration</strong></div>
+          <div class="icons" id="icons"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===== Helpers ===== */
+const $ = id => document.getElementById(id);
+
+/* ===== House Themes ===== */
+const HOUSE = {
+  gry:{name:'Gryffindor', c1:getCSS('--gry-1'), c2:getCSS('--gry-2')},
+  sly:{name:'Slytherin',  c1:getCSS('--sly-1'), c2:getCSS('--sly-2')},
+  rav:{name:'Ravenclaw',  c1:getCSS('--rav-1'), c2:getCSS('--rav-2')},
+  huf:{name:'Hufflepuff', c1:getCSS('--huf-1'), c2:getCSS('--huf-2')}
+};
+function getCSS(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+function applyTheme(h){
+  document.documentElement.style.setProperty('--pri', HOUSE[h].c1);
+  document.documentElement.style.setProperty('--sec', HOUSE[h].c2);
+}
+
+/* ===== Elements ===== */
+const els = {
+  pHouse: $('playerHouse'), rHouse: $('rivalHouse'),
+  rivalAcc: $('rivalAcc'), roundSec: $('roundSec'),
+  mode: $('mode'),
+  mulDiff: $('mulDiff'),
+  divDiff: $('divDiff'),
+  tensDiff: $('tensDiff'),
+  mixedDiff: $('mixedDiff'),
+  op: $('op'), range: $('range'),
+  mulBox: $('mulBox'), divBox: $('divBox'), tensBox: $('tensBox'), mixedBox: $('mixedBox'), opBox: $('opBox'), rangeBox: $('rangeBox'),
+  start: $('startBtn'), stop: $('stopBtn'),
+  pBadge: $('pBadge'), rBadge: $('rBadge'),
+  pName: $('pName'), rName: $('rName'),
+  pScore: $('pScore'), rScore: $('rScore'),
+  timer: $('timer'), pos: $('pos'),
+  stadium: $('stadium'), field: $('field'), quaffle: $('quaffle'),
+  question: $('question'), answer: $('answer'),
+  cast: $('cast'), feed: $('feedback'), icons: $('icons'),
+  annPlay: $('annPlay'), annQ: $('annQ'),
+  voiceSel: $('voiceSel'), rate: $('rate'),
+  exportCsvBtn: $('exportCsvBtn'), copyReportBtn: $('copyReportBtn'), emailReportBtn: $('emailReportBtn')
+};
+
+/* ===== Announcer ===== */
+const VOICES = { list: [] };
+function loadVoices(){
+  if(!('speechSynthesis' in window)) return;
+  VOICES.list = speechSynthesis.getVoices();
+  els.voiceSel.innerHTML = '<option value="">Default</option>' +
+    VOICES.list.map((v,i)=>`<option value="${i}">${v.name} (${v.lang})</option>`).join('');
+}
+if('speechSynthesis' in window){
+  speechSynthesis.onvoiceschanged = loadVoices; loadVoices();
+}
+function speak(text){
+  if(!('speechSynthesis' in window)) return;
+  const u = new SpeechSynthesisUtterance(text);
+  const rate = Math.max(0.5, Math.min(1.5, parseFloat(els.rate.value||'1')));
+  u.rate = rate;
+  const idx = els.voiceSel.value;
+  if(idx !== ''){ const v = VOICES.list[+idx]; if(v) u.voice = v; }
+  speechSynthesis.cancel(); speechSynthesis.speak(u);
+}
+const WIZARD_PREFIXES = [
+  'By the old runes,',
+  'Attend closely, young seeker,',
+  'A charm stirs in the air:',
+  'The enchanted pitch whispers:',
+  'From the tower shadows,',
+  'A curious spell reveals itself:',
+  'The Quaffle glows with a riddle:'
+];
+const WIZARD_CORRECT = [
+  'Brilliant spellwork!',
+  'The charm is complete!',
+  'A clean strike through the golden hoops!',
+  'The runes flare in your favor!',
+  'Well cast, wizard!'
+];
+const WIZARD_WRONG = [
+  'The spell flickers, but not quite.',
+  'The runes resist that answer.',
+  'A near miss through the mist.',
+  'The charm wobbles in midair.'
+];
+function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+function spellQuestionLine(q){
+  const text = q.op==='mul' ? `${q.a} times ${q.b}`
+             : q.op==='div' ? `${q.a} divided by ${q.b}`
+             : q.text.replace('−','minus').replace('+','plus');
+  return `${pick(WIZARD_PREFIXES)} what is ${text}?`;
+}
+const sayPlay = s => { if(els.annPlay.checked) speak(s); };
+const sayQ    = s => { if(els.annQ.checked) speak(s); };
+
+/* ===== Game State & Reporting ===== */
+let state = {
+  running:false, timeLeft:0, possession:'-',
+  player:{house:'gry', score:0},
+  rival:{house:'sly', score:0, acc:0.04},
+  q:{type:'mul', a:null,b:null,op:'mul',text:'',ans:null, askedAt:null},
+  rivalTimer:null, tick:null,
+  warned60:false, warned30:false, warned10:false
+};
+let results = []; // log of attempts
+function nowISO(){ return new Date().toISOString(); }
+
+/* ===== Text/Parsing helpers ===== */
+function fmtTime(s){ s=Math.max(0, s|0); const m=(s/60|0).toString().padStart(2,'0'); const ss=(s%60).toString().padStart(2,'0'); return `${m}:${ss}`; }
+function randInt(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
+function normalize(s){
+  if(!s) return '';
+  s = s.toLowerCase()
+       .replace(/×/g,'x')
+       .replace(/\*/g,'x')
+       .replace(/÷/g,'/')
+       .replace(/—/g,'-').replace(/–/g,'-');
+  s = s.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  return s.replace(/[^\w\s\+\-x/]/g,' ').replace(/\s+/g,' ').trim();
+}
+const NUMBER_WORDS = {
+  "zero":0,"cero":0,"one":1,"uno":1,"two":2,"dos":2,"three":3,"tres":3,
+  "four":4,"cuatro":4,"five":5,"cinco":5,"six":6,"seis":6,"seven":7,"siete":7,
+  "eight":8,"ocho":8,"nine":9,"nueve":9,"ten":10,"diez":10,"eleven":11,"once":11,
+  "twelve":12,"doce":12,"thirteen":13,"trece":13,"fourteen":14,"catorce":14,"fifteen":15,"quince":15,
+  "twenty":20,"veinte":20,"thirty":30,"treinta":30,"forty":40,"cuarenta":40,"fifty":50,"cincuenta":50,
+  "sixty":60,"sesenta":60,"seventy":70,"setenta":70,"eighty":80,"ochenta":80,"ninety":90,"noventa":90,
+  "hundred":100,"cien":100
+};
+function wordToNum(tok){
+  if(tok==null) return null;
+  if(NUMBER_WORDS[tok]!=null) return NUMBER_WORDS[tok];
+  const n=+tok; return Number.isFinite(n)? n : null;
+}
+
+/* ===== Problem generation (added Zero & Tens modes) ===== */
+function newQuestion(){
+  const mode = els.mode.value; // 'mul' | 'div' | 'addsub' | 'zero' | 'tens' | 'mixed4'
+
+  if(mode === 'mul'){
+    const max = parseInt(els.mulDiff.value, 10) || 5;
+    const a = randInt(1, max);
+    const b = randInt(1, max);
+    return {type:'mul', op:'mul', a, b, ans:a*b, text:`${a} × ${b}`};
+
+  } else if(mode === 'div'){
+    const max = parseInt(els.divDiff.value, 10) || 5;
+    const divisor = randInt(1, max);
+    const quotient = randInt(1, max);
+    const dividend = divisor * quotient;
+    return {type:'div', op:'div', a:dividend, b:divisor, ans:quotient, text:`${dividend} ÷ ${divisor}`};
+
+  } else if(mode === 'zero'){
+    // Only ×0 and 0÷N. Reuse mul/div difficulty ranges for the non-zero number.
+    const doMul = Math.random() < 0.5;
+    if(doMul){
+      const max = parseInt(els.mulDiff.value, 10) || 5;
+      const a = randInt(0, max); // show variety like 0×N or N×0? Requirement said ×0, so show N×0
+      const b = 0;
+      return {type:'zero', op:'mul', a, b, ans:0, text:`${a} × ${b}`};
+    }else{
+      const maxd = parseInt(els.divDiff.value, 10) || 5;
+      const divisor = randInt(1, maxd);
+      const dividend = 0;
+      return {type:'zero', op:'div', a:dividend, b:divisor, ans:0, text:`${dividend} ÷ ${divisor}`};
+    }
+
+  } else if(mode === 'tens'){
+    // ×10 and ÷10, with its own difficulty: factor/quotient 1..tensDiff
+    const max = parseInt(els.tensDiff.value, 10) || 10;
+    const doMul = Math.random() < 0.5;
+    if(doMul){
+      const a = randInt(1, max);
+      const b = 10;
+      return {type:'tens', op:'mul', a, b, ans:a*10, text:`${a} × ${b}`};
+    }else{
+      const a = randInt(1, max); // quotient
+      const dividend = a * 10;
+      const divisor = 10;
+      return {type:'tens', op:'div', a:dividend, b:divisor, ans:a, text:`${dividend} ÷ ${divisor}`};
+    }
+
+  } else if(mode === 'mixed4'){
+    const diff = parseInt(els.mixedDiff.value, 10) || 1;
+    const op = ['add','sub','mul','div'][randInt(0,3)];
+    let a,b,ans,text;
+    if(op === 'mul'){
+      const max = diff===1 ? 5 : diff===2 ? 10 : 12;
+      a = randInt(1, max); b = randInt(1, max); ans = a*b; text = `${a} × ${b}`;
+    }else if(op === 'div'){
+      const max = diff===1 ? 5 : diff===2 ? 10 : 12;
+      const divisor = randInt(1, max);
+      const quotient = randInt(1, max);
+      a = divisor * quotient; b = divisor; ans = quotient; text = `${a} ÷ ${b}`;
+    }else{
+      const max = diff===1 ? 10 : diff===2 ? 50 : 100;
+      a = randInt(0, max); b = randInt(0, max);
+      if(op === 'sub'){
+        if(b>a) [a,b]=[b,a];
+        ans = a-b; text = `${a} − ${b}`;
+      }else{
+        ans = a+b; text = `${a} + ${b}`;
+      }
+    }
+    return {type:'mixed4', op, a, b, ans, text};
+
+  } else {
+    const opSel = els.op.value;
+    const op = opSel==='mix' ? (Math.random()<0.5?'add':'sub') : opSel;
+    const range = els.range.value;
+    let a,b,ans,text;
+    if(range === 'hundreds'){
+      a = randInt(1,9)*100; b = randInt(1,9)*100;
+      if(op==='sub'){ if(b>a) [a,b]=[b,a]; ans=a-b; text=`${a} − ${b}`; }
+      else { ans=a+b; text=`${a} + ${b}`; }
+    }else{
+      const max = parseInt(range,10) || 20;
+      a = randInt(0,max); b = randInt(0,max);
+      if(op==='sub'){ if(b>a) [a,b]=[b,a]; ans=a-b; text=`${a} − ${b}`; }
+      else { ans=a+b; text=`${a} + ${b}`; }
+    }
+    return {type:'addsub', op, a, b, ans, text};
+  }
+}
+
+/* ===== Parse user answer ===== */
+function parseAnswer(raw){
+  const s = normalize(raw); if(!s) return null;
+
+  // Direct number
+  const num = +s; if(Number.isFinite(num)) return num;
+
+  const t = s.split(' ');
+
+  // Multiply: "x"/"times"/"by"/"por", or "3x4"
+  let idx = t.findIndex(w => w==='x' || w==='times' || w==='by' || w==='por');
+  if(idx>0 && t[idx-1] && t[idx+1]){
+    const A = wordToNum(t[idx-1]); const B = wordToNum(t[idx+1]);
+    if(A!=null && B!=null) return A*B;
+  }
+  let m = s.match(/^(\d{1,3}|[a-z]+)x(\d{1,3}|[a-z]+)$/);
+  if(m){ const A=wordToNum(m[1]), B=wordToNum(m[2]); if(A!=null&&B!=null) return A*B; }
+
+  // Division: "/" or "divided"/"entre"
+  idx = t.findIndex(w => w==='/' || w==='divided' || w==='entre');
+  if(idx>0 && t[idx-1] && t[idx+1]){
+    const A = wordToNum(t[idx-1]); const B = wordToNum(t[idx+1]);
+    if(A!=null && B!=null && B!==0) return Math.trunc(A/B);
+  }
+  m = s.match(/^(\d{1,5})\/(\d{1,5})$/);
+  if(m){ const A=+m[1], B=+m[2]; if(B!==0) return Math.trunc(A/B); }
+
+  // + / −
+  let idxPlus = t.findIndex(w => w==='plus' || w==='mas' || w==='+' );
+  let idxMinus= t.findIndex(w => w==='minus' || w==='menos' || w==='-');
+  if(idxPlus>0 && t[idxPlus-1] && t[idxPlus+1]){
+    const A = wordToNum(t[idxPlus-1]); const B = wordToNum(t[idxPlus+1]);
+    if(A!=null && B!=null) return A+B;
+  }
+  if(idxMinus>0 && t[idxMinus-1] && t[idxMinus+1]){
+    const A = wordToNum(t[idxMinus-1]); const B = wordToNum(t[idxMinus+1]);
+    if(A!=null && B!=null) return A-B;
+  }
+  m = s.match(/^(\d+)\+(\d+)$/); if(m){ return (+m[1])+(+m[2]); }
+  m = s.match(/^(\d+)-(\d+)$/); if(m){ return (+m[1])-(+m[2]); }
+
+  // Convenience: "3 4" → assume multiply
+  const parts = s.split(' ');
+  if(parts.length===2){
+    const A=wordToNum(parts[0]), B=wordToNum(parts[1]);
+    if(A!=null && B!=null) return A*B;
+  }
+
+  return null;
+}
+
+/* ===== Celebration icons ===== */
+function iconSpark(c1,c2){
+  const ns="http://www.w3.org/2000/svg"; const s=document.createElementNS(ns,"svg");
+  s.setAttribute("viewBox","0 0 24 24"); s.setAttribute("class","icon");
+  const p=document.createElementNS(ns,"path"); p.setAttribute("d","M12 2l2 4 4 2-4 2-2 4-2-4-4-2 4-2z");
+  p.setAttribute("fill",c2); p.setAttribute("stroke",c1); p.setAttribute("stroke-width","0.8");
+  s.appendChild(p); return s;
+}
+function celebrate(n,c1,c2){
+  els.icons.innerHTML='';
+  const k=Math.min(n,40);
+  for(let i=0;i<k;i++){
+    const w=document.createElement('div'); w.className='item'; w.style.animationDelay=(i*0.015)+'s';
+    w.appendChild(iconSpark(c1,c2)); els.icons.appendChild(w);
+  }
+}
+
+/* ===== Drifting Quaffle ===== */
+let qx=80,qy=80,vx=1.0,vy=0.9,driftID=null;
+function startDrift(){
+  cancelDrift();
+  function step(){
+    if(!state.running || state.possession!=='-'){ cancelDrift(); return; }
+    const rect = els.field.getBoundingClientRect();
+    const size = 54;
+    qx += vx; qy += vy;
+    if(qx<0 || qx>rect.width-size){ vx*=-1; qx=Math.max(0,Math.min(rect.width-size,qx)); }
+    if(qy<0 || qy>rect.height-size){ vy*=-1; qy=Math.max(0,Math.min(rect.height-size,qy)); }
+    els.quaffle.style.left=qx+'px'; els.quaffle.style.top=qy+'px';
+    driftID=requestAnimationFrame(step);
+  }
+  step();
+}
+function cancelDrift(){ if(driftID){ cancelAnimationFrame(driftID); driftID=null; } }
+
+/* ===== Flow ===== */
+function resetBoard(){
+  state.possession='-';
+  const mode = els.mode.value;
+  state.q={type:mode, a:null,b:null,op:mode==='addsub'?'add':mode, text:'',ans:null, askedAt:null};
+  els.pos.textContent='–';
+  els.question.textContent='No question—catch the Quaffle first.';
+  els.answer.value=''; els.feed.textContent=''; els.icons.innerHTML='';
+
+  const w = els.field.clientWidth, h = els.field.clientHeight, pad = 10, size=54;
+  qx = randInt(pad, Math.max(pad, w - size - pad));
+  qy = randInt(pad, Math.max(pad, h - size - pad));
+  vx = (Math.random()<0.5?-1:1)*(0.7+Math.random()*1.1);
+  vy = (Math.random()<0.5?-1:1)*(0.7+Math.random()*1.1);
+  els.quaffle.style.left = qx+'px';
+  els.quaffle.style.top  = qy+'px';
+  els.quaffle.style.display = 'block';
+  startDrift();
+}
+function giveQuaffle(to){
+  state.possession = to; els.pos.textContent = to;
+  if(to==='Player'){
+    state.q = newQuestion();
+    state.q.askedAt = performance.now();
+    const speakLine = `You have seized the Quaffle. ${spellQuestionLine(state.q)}`;
+    els.question.textContent = `You caught the Quaffle! What is ${state.q.text}?`;
+    if(els.annQ.checked) sayQ(speakLine);
+    els.answer.focus();
+  }else if(to==='Rival'){
+    state.q = newQuestion();
+    els.question.textContent = `${HOUSE[state.rival.house].name} caught the Quaffle…`;
+    sayPlay(`${HOUSE[state.rival.house].name} has snatched the Quaffle from the swirling mist.`);
+    window.setTimeout(()=>rivalShoot(), 1100 + randInt(0,700));
+  }
+}
+function rivalShoot(){
+  if(!state.running || state.possession!=='Rival') return;
+  const ok = Math.random() < state.rival.acc;
+  if(ok){
+    state.rival.score += 1; els.rScore.textContent = state.rival.score;
+    els.feed.textContent = `${HOUSE[state.rival.house].name} scores!`;
+    sayPlay(`${HOUSE[state.rival.house].name} threads the enchanted hoop and scores!`);
+    celebrate(10, HOUSE[state.rival.house].c1, HOUSE[state.rival.house].c2);
+  }else{
+    els.feed.textContent = `${HOUSE[state.rival.house].name} misses!`;
+    sayPlay(`${HOUSE[state.rival.house].name} casts wide; the Quaffle vanishes past the hoop.`);
+  }
+  resetBoard();
+}
+function playerShoot(){
+  if(!state.running || state.possession!=='Player') return;
+  const raw = els.answer.value;
+  const val = parseAnswer(raw);
+  const correct = (val===state.q.ans);
+  const elapsedMs = state.q.askedAt ? Math.max(0, Math.round(performance.now() - state.q.askedAt)) : null;
+
+  // Log result
+  results.push({
+    time: nowISO(),
+    mode: state.q.type,
+    prompt: state.q.text,
+    a: state.q.a, b: state.q.b, op: state.q.op,
+    userAnswer: raw,
+    parsed: Number.isFinite(val) ? val : null,
+    correctAnswer: state.q.ans,
+    correct: !!correct,
+    msToAnswer: elapsedMs
+  });
+  try { localStorage.setItem('quidditch_results', JSON.stringify(results)); } catch(e){}
+
+  if(correct){
+    state.player.score += 1; els.pScore.textContent = state.player.score;
+    els.feed.textContent = `Goal! ${state.q.text} = ${state.q.ans}`;
+    celebrate(12, HOUSE[state.player.house].c1, HOUSE[state.player.house].c2);
+    if(els.annQ.checked){
+      if(state.q.op==='mul') sayQ(`${pick(WIZARD_CORRECT)} ${state.q.a} times ${state.q.b} equals ${state.q.ans}.`);
+      else if(state.q.op==='div') sayQ(`${pick(WIZARD_CORRECT)} ${state.q.a} divided by ${state.q.b} equals ${state.q.ans}.`);
+      else sayQ(`${pick(WIZARD_CORRECT)} ${state.q.text.replace('−','minus').replace('+','plus')} equals ${state.q.ans}.`);
+    } else { sayPlay(`A blazing goal for ${HOUSE[state.player.house].name}!`); }
+  }else{
+    els.feed.textContent = (val==null) ? `Couldn't read that. Try just the answer.` : `Close! The answer was ${state.q.ans}.`;
+    if(els.annQ.checked) sayQ((val==null)? `The oracle could not read that. Try just the number.` : `${pick(WIZARD_WRONG)} The answer was ${state.q.ans}.`);
+  }
+  resetBoard();
+}
+
+/* ===== Timers + rival steals ===== */
+function startTimers(){
+  state.timeLeft = Math.max(10, +els.roundSec.value|0);
+  els.timer.textContent = fmtTime(state.timeLeft);
+  state.warned60 = state.warned30 = state.warned10 = false;
+
+  state.tick = window.setInterval(()=>{
+    if(!state.running) return;
+    state.timeLeft -= 1; els.timer.textContent = fmtTime(state.timeLeft);
+    if(state.warned60===false && state.timeLeft===60){ state.warned60=true; sayPlay('One minute remains; the hourglass is nearly spent.'); }
+    if(state.warned30===false && state.timeLeft===30){ state.warned30=true; sayPlay('Thirty seconds remain; the pitch grows restless.'); }
+    if(state.warned10===false && state.timeLeft===10){ state.warned10=true; sayPlay('Ten seconds; cast swiftly.'); }
+    if(state.timeLeft<=0){ endMatch(); }
+  }, 1000);
+
+  state.rivalTimer = window.setInterval(()=>{
+    if(!state.running) return;
+    if(state.possession==='-'){
+      if(Math.random()<0.5){ giveQuaffle('Rival'); cancelDrift(); }
+    }
+  }, 1800);
+}
+function stopTimers(){ clearInterval(state.tick); clearInterval(state.rivalTimer); state.tick = state.rivalTimer = null; }
+
+/* ===== Start/End ===== */
+function startMatch(){
+  state.running=true;
+  state.player.house = els.pHouse.value;
+  state.rival.house = (els.rHouse.value===state.player.house)
+    ? (['gry','sly','rav','huf'].find(h=>h!==state.player.house))
+    : els.rHouse.value;
+  state.player.score=0; state.rival.score=0;
+  state.rival.acc = Math.max(0, Math.min(1, (+els.rivalAcc.value||4)/100));
+  applyTheme(state.player.house);
+
+  els.pName.textContent = HOUSE[state.player.house].name;
+  els.rName.textContent = HOUSE[state.rival.house].name;
+  els.pBadge.style.background = HOUSE[state.player.house].c1;
+  els.rBadge.style.background = HOUSE[state.rival.house].c1;
+  els.pScore.textContent='0'; els.rScore.textContent='0';
+  els.start.disabled=true; els.stop.disabled=false;
+
+  resetBoard(); startTimers();
+  sayPlay(`The enchanted match begins. ${HOUSE[state.player.house].name} faces ${HOUSE[state.rival.house].name}. Brooms rise, charms shimmer, and the Quaffle awakens.`);
+}
+function endMatch(){
+  if(!state.running) return;
+  state.running=false; stopTimers(); resetBoard();
+  els.start.disabled=false; els.stop.disabled=true;
+  const p=state.player.score, r=state.rival.score;
+  const line = (p>r)? `${HOUSE[state.player.house].name} wins ${p} to ${r}!`
+            : (r>p)? `${HOUSE[state.rival.house].name} wins ${r} to ${p}.`
+                    : `It's a draw, ${p} to ${r}.`;
+  els.feed.textContent = line; sayPlay(`The final bell tolls across the towers. ${line}`);
+}
+
+/* ===== UI: show/hide controls based on mode ===== */
+function updateModeUI(){
+  const mode = els.mode.value;
+  const isMul = mode === 'mul';
+  const isDiv = mode === 'div';
+  const isAddSub = mode === 'addsub';
+  const isZero = mode === 'zero';
+  const isTens = mode === 'tens';
+  const isMixed = mode === 'mixed4';
+
+  // Show/hide control groups
+  els.mulBox.classList.toggle('hidden', !(isMul || isZero));   // Zero uses mulDiff for N×0
+  els.divBox.classList.toggle('hidden', !(isDiv || isZero));   // Zero uses divDiff for 0÷N
+  els.tensBox.classList.toggle('hidden', !isTens);
+  els.mixedBox.classList.toggle('hidden', !isMixed);
+  els.opBox.classList.toggle('hidden', !isAddSub);
+  els.rangeBox.classList.toggle('hidden', !isAddSub);
+
+  // Placeholder hints
+  if(isMul){
+    els.answer.placeholder = "Type the answer (e.g., 12) or '3x4' / 'three by four' / 'tres por cuatro'";
+  }else if(isDiv){
+    els.answer.placeholder = "Type the answer (e.g., 4) or '12/3' / 'twelve divided by three' / 'doce entre tres'";
+  }else if(isZero){
+    els.answer.placeholder = "Zero Facts: answers are 0. Examples: '7x0', '0/5'";
+  }else if(isTens){
+    els.answer.placeholder = "Tens Facts: ×10 or ÷10. Examples: '3x10'=30, '40/10'=4";
+  }else if(isMixed){
+    els.answer.placeholder = "Mixed Spells: +, −, ×, or ÷. Type just the answer, or use forms like '3x4', '40/10', '8 minus 5'.";
+  }else{
+    els.answer.placeholder = "Type the answer (e.g., 500) or '300+200' / 'eight minus five'";
+  }
+
+  if(state.running){ resetBoard(); }
+}
+els.mode.addEventListener('change', updateModeUI);
+
+/* ===== Reporting helpers ===== */
+function toCSV(rows){
+  const esc = v => {
+    if(v==null) return '';
+    const s = String(v).replace(/"/g,'""');
+    return /[",\n]/.test(s) ? `"${s}"` : s;
+  };
+  const header = ["time","mode","prompt","a","b","op","userAnswer","parsed","correctAnswer","correct","msToAnswer"];
+  const body = rows.map(r => header.map(k => esc(r[k])).join(','));
+  return [header.join(','), ...body].join('\n');
+}
+function buildSummary(rows){
+  const total = rows.length;
+  const correct = rows.filter(r=>r.correct).length;
+  const byMode = {};
+  rows.forEach(r=>{
+    byMode[r.mode] = byMode[r.mode] || {total:0,correct:0};
+    byMode[r.mode].total++; if(r.correct) byMode[r.mode].correct++;
+  });
+  const lines = [];
+  lines.push(`Quidditch Math Report`);
+  lines.push(`Date: ${new Date().toLocaleString()}`);
+  lines.push(`Total attempts: ${total}, Correct: ${correct}, Accuracy: ${total?Math.round(100*correct/total):0}%`);
+  Object.entries(byMode).forEach(([m,stats])=>{
+    lines.push(`- ${m}: ${stats.correct}/${stats.total} (${Math.round(100*stats.correct/stats.total)}%)`);
+  });
+  lines.push(``);
+  lines.push(`Recent attempts (latest 10):`);
+  rows.slice(-10).forEach(r=>{
+    lines.push(`• [${r.mode}] ${r.prompt} → You: ${r.parsed ?? r.userAnswer} | Ans: ${r.correctAnswer} | ${r.correct?'✓':'✗'} | ${r.msToAnswer??'–'} ms`);
+  });
+  return lines.join('\n');
+}
+function download(filename, text){
+  const blob = new Blob([text], {type:'text/plain'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+}
+
+/* ===== Wire up ===== */
+els.start.addEventListener('click', startMatch);
+els.stop.addEventListener('click', endMatch);
+els.quaffle.addEventListener('click', ()=>{ if(state.running && state.possession==='-'){ giveQuaffle('Player'); cancelDrift(); }});
+els.cast.addEventListener('click', playerShoot);
+els.answer.addEventListener('keydown', e=>{ if(e.key==='Enter'){ playerShoot(); }});
+
+els.exportCsvBtn.addEventListener('click', ()=>{
+  if(results.length===0){ alert('No attempts yet.'); return; }
+  download('quidditch_results.csv', toCSV(results));
+});
+els.copyReportBtn.addEventListener('click', async ()=>{
+  const txt = buildSummary(results);
+  try { await navigator.clipboard.writeText(txt); alert('Report copied to clipboard.'); }
+  catch(e){ download('quidditch_report.txt', txt); }
+});
+els.emailReportBtn.addEventListener('click', ()=>{
+  const body = encodeURIComponent(buildSummary(results));
+  const subject = encodeURIComponent('Quidditch Math Report');
+  window.location.href = `mailto:?subject=${subject}&body=${body}`;
+});
+
+/* ===== Clear History Button ===== */
+els.clearHistoryBtn = $('clearHistoryBtn');
+els.clearHistoryBtn.addEventListener('click', ()=>{
+  if(confirm("Erase all stored attempts and reset the log?")){
+    results = [];
+    try { localStorage.removeItem('quidditch_results'); } catch(e){}
+    alert('History cleared!');
+  }
+});
+
+/* ===== Init ===== */
+applyTheme('gry');
+try {
+  const saved = JSON.parse(localStorage.getItem('quidditch_results')||'[]');
+  if(Array.isArray(saved)) results = saved;
+} catch(e){}
+updateModeUI();
+</script>
+</body>
+</html>
