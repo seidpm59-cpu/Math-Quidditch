@@ -219,7 +219,7 @@
         <input id="roundSec" type="number" min="10" max="999" value="300" style="width:90px"> sec
       </label>
       <label class="sliderLabel">Quaffle Speed:
-        <input id="quaffleSpeed" type="range" min="0.5" max="2.5" step="0.1" value="1.9">
+        <input id="quaffleSpeed" type="range" min="0.5" max="5.0" step="0.1" value="1.9">
         <span class="sliderValue" id="quaffleSpeedVal">1.9×</span>
       </label>
     </div>
@@ -437,6 +437,7 @@ let state = {
   rival:{house:'sly', score:0, acc:0.04},
   q:{type:'mul', a:null,b:null,op:'mul',text:'',ans:null, askedAt:null},
   rivalTimer:null, tick:null,
+  quaffleFreeAt:0,
   warned60:false, warned30:false, warned10:false
 };
 let results = []; // log of attempts
@@ -632,7 +633,7 @@ function celebrate(n,c1,c2){
 /* ===== Drifting Quaffle ===== */
 let qx=80,qy=80,vx=1.0,vy=0.9,driftID=null;
 function getQuaffleSpeed(){
-  return Math.max(0.5, Math.min(2.5, parseFloat(els.quaffleSpeed.value || '1')));
+  return Math.max(0.5, Math.min(3.0, parseFloat(els.quaffleSpeed.value || '1.9')));
 }
 function updateQuaffleSpeedLabel(){
   els.quaffleSpeedVal.textContent = `${getQuaffleSpeed().toFixed(1)}×`;
@@ -677,6 +678,12 @@ function resetBoard(){
   els.quaffle.style.left = qx+'px';
   els.quaffle.style.top  = qy+'px';
   els.quaffle.style.display = 'block';
+
+  // Give the player a randomized grace window before the rival can steal.
+  // Most resets provide a fair opening; a few are intentionally quick for suspense.
+  const rivalGraceMs = (Math.random() < 0.18) ? randInt(700, 1400) : randInt(2200, 5200);
+  state.quaffleFreeAt = performance.now() + rivalGraceMs;
+
   startDrift();
 }
 function giveQuaffle(to){
@@ -766,10 +773,12 @@ function startTimers(){
 
   state.rivalTimer = window.setInterval(()=>{
     if(!state.running) return;
-    if(state.possession==='-'){
-      if(Math.random()<0.5){ giveQuaffle('Rival'); cancelDrift(); }
+    if(state.possession==='-' && performance.now() >= state.quaffleFreeAt){
+      // After the grace window, the rival only sometimes snatches it,
+      // so the player usually gets a real chance to catch the Quaffle.
+      if(Math.random()<0.38){ giveQuaffle('Rival'); cancelDrift(); }
     }
-  }, 1800);
+  }, 1200);
 }
 function stopTimers(){ clearInterval(state.tick); clearInterval(state.rivalTimer); state.tick = state.rivalTimer = null; }
 
