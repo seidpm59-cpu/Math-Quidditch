@@ -147,6 +147,51 @@
   }
   #quaffle:hover{box-shadow:0 0 14px 5px rgba(255,200,120,.65);transform:scale(1.04)}
 
+  /* Magical tactile feedback for taps/catches */
+  .tap-ripple{
+    position:absolute;
+    width:22px;height:22px;border-radius:50%;
+    left:0;top:0;transform:translate(-50%,-50%) scale(.2);
+    border:2px solid rgba(245,200,66,.85);
+    background:radial-gradient(circle, rgba(245,200,66,.30) 0%, rgba(78,201,176,.14) 45%, transparent 72%);
+    box-shadow:0 0 18px rgba(245,200,66,.55), inset 0 0 10px rgba(78,201,176,.25);
+    pointer-events:none;z-index:3;
+    animation:tapRipple .62s ease-out forwards;
+  }
+  .tap-ripple.catch{
+    width:34px;height:34px;
+    border-color:rgba(78,201,176,.95);
+    box-shadow:0 0 24px rgba(78,201,176,.62), 0 0 38px rgba(245,200,66,.38), inset 0 0 14px rgba(245,200,66,.25);
+    animation:catchRipple .78s ease-out forwards;
+  }
+  .tap-spark{
+    position:absolute;left:0;top:0;transform:translate(-50%,-50%);
+    color:rgba(245,200,66,.95);font-size:1rem;line-height:1;
+    pointer-events:none;z-index:4;text-shadow:0 0 10px rgba(245,200,66,.8);
+    animation:tapSpark .72s ease-out forwards;
+  }
+  #quaffle.caught-flash{
+    animation:quaffleCatchFlash .38s ease-out;
+  }
+  @keyframes tapRipple{
+    0%{opacity:.95;transform:translate(-50%,-50%) scale(.2)}
+    100%{opacity:0;transform:translate(-50%,-50%) scale(6)}
+  }
+  @keyframes catchRipple{
+    0%{opacity:1;transform:translate(-50%,-50%) scale(.2)}
+    60%{opacity:.85;transform:translate(-50%,-50%) scale(5)}
+    100%{opacity:0;transform:translate(-50%,-50%) scale(8)}
+  }
+  @keyframes tapSpark{
+    0%{opacity:1;transform:translate(-50%,-50%) scale(.65) rotate(0deg)}
+    100%{opacity:0;transform:translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(1.25) rotate(90deg)}
+  }
+  @keyframes quaffleCatchFlash{
+    0%{transform:scale(1);box-shadow:0 0 14px rgba(245,200,66,.4)}
+    45%{transform:scale(1.18);box-shadow:0 0 28px 10px rgba(78,201,176,.55), 0 0 46px rgba(245,200,66,.45)}
+    100%{transform:scale(1);box-shadow:0 4px 12px rgba(0,0,0,.44), 0 0 18px rgba(245,200,66,.18)}
+  }
+
   .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
   .panel{
     position:relative;border:1px solid rgba(245,200,66,.18);border-radius:14px;padding:14px;
@@ -633,7 +678,7 @@ function celebrate(n,c1,c2){
 /* ===== Drifting Quaffle ===== */
 let qx=80,qy=80,vx=1.0,vy=0.9,driftID=null;
 function getQuaffleSpeed(){
-  return Math.max(0.5, Math.min(3.0, parseFloat(els.quaffleSpeed.value || '1.9')));
+  return Math.max(0.5, Math.min(5.0, parseFloat(els.quaffleSpeed.value || '1.9')));
 }
 function updateQuaffleSpeedLabel(){
   els.quaffleSpeedVal.textContent = `${getQuaffleSpeed().toFixed(1)}×`;
@@ -659,6 +704,47 @@ function startDrift(){
   step();
 }
 function cancelDrift(){ if(driftID){ cancelAnimationFrame(driftID); driftID=null; } }
+
+
+/* ===== Tactile field feedback ===== */
+function fieldPointFromEvent(evt){
+  const rect = els.field.getBoundingClientRect();
+  const touch = evt.touches && evt.touches[0] ? evt.touches[0] : evt;
+  return {
+    x: Math.max(0, Math.min(rect.width, touch.clientX - rect.left)),
+    y: Math.max(0, Math.min(rect.height, touch.clientY - rect.top))
+  };
+}
+function makeFieldRipple(evt, caught=false){
+  const p = fieldPointFromEvent(evt);
+  const ripple = document.createElement('div');
+  ripple.className = caught ? 'tap-ripple catch' : 'tap-ripple';
+  ripple.style.left = `${p.x}px`;
+  ripple.style.top = `${p.y}px`;
+  els.field.appendChild(ripple);
+  ripple.addEventListener('animationend', ()=>ripple.remove(), {once:true});
+
+  const sparkCount = caught ? 9 : 4;
+  for(let i=0;i<sparkCount;i++){
+    const spark = document.createElement('div');
+    spark.className = 'tap-spark';
+    spark.textContent = i % 3 === 0 ? '✦' : '✧';
+    const angle = (Math.PI * 2 * i / sparkCount) + Math.random()*0.35;
+    const dist = caught ? randInt(26, 56) : randInt(14, 32);
+    spark.style.left = `${p.x}px`;
+    spark.style.top = `${p.y}px`;
+    spark.style.setProperty('--dx', `${Math.cos(angle)*dist}px`);
+    spark.style.setProperty('--dy', `${Math.sin(angle)*dist}px`);
+    spark.style.animationDelay = `${i*0.018}s`;
+    els.field.appendChild(spark);
+    spark.addEventListener('animationend', ()=>spark.remove(), {once:true});
+  }
+}
+function flashQuaffleCatch(){
+  els.quaffle.classList.remove('caught-flash');
+  void els.quaffle.offsetWidth;
+  els.quaffle.classList.add('caught-flash');
+}
 
 /* ===== Flow ===== */
 function resetBoard(){
@@ -900,7 +986,9 @@ function download(filename, text){
 /* ===== Wire up ===== */
 els.start.addEventListener('click', startMatch);
 els.stop.addEventListener('click', endMatch);
-els.quaffle.addEventListener('click', ()=>{ if(state.running && state.possession==='-'){ giveQuaffle('Player'); cancelDrift(); }});
+els.field.addEventListener('pointerdown', e=>{ if(e.target!==els.quaffle) makeFieldRipple(e, false); });
+els.quaffle.addEventListener('pointerdown', e=>{ makeFieldRipple(e, true); flashQuaffleCatch(); });
+els.quaffle.addEventListener('click', e=>{ if(state.running && state.possession==='-'){ giveQuaffle('Player'); cancelDrift(); }});
 els.cast.addEventListener('click', playerShoot);
 els.answer.addEventListener('keydown', e=>{ if(e.key==='Enter'){ playerShoot(); }});
 
