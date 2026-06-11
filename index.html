@@ -192,7 +192,7 @@
     100%{transform:scale(1);box-shadow:0 4px 12px rgba(0,0,0,.44), 0 0 18px rgba(245,200,66,.18)}
   }
 
-  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .grid{display:grid;grid-template-columns:1fr;gap:12px}
   .panel{
     position:relative;border:1px solid rgba(245,200,66,.18);border-radius:14px;padding:14px;
     background:linear-gradient(180deg,rgba(42,31,14,.86),rgba(28,20,8,.86));
@@ -206,6 +206,21 @@
   .eqn{font-family:'Cinzel',serif;font-size:1.15rem;line-height:1.45;color:var(--accent);letter-spacing:.4px;margin-bottom:10px;text-shadow:0 0 12px rgba(245,200,66,.12)}
   .small{font-size:.95rem;color:var(--muted);min-height:1.25em;font-style:italic}
   svg.icon{width:34px;height:34px}
+
+  /* History log */
+  .history-card{margin-top:16px}
+  .history-header{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;cursor:pointer;user-select:none}
+  .history-title{font-family:'Cinzel',serif;font-size:.82rem;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;display:flex;align-items:center;gap:8px}
+  #historyChevron{font-size:.8rem;color:var(--muted);transition:transform .3s}
+  #historyChevron.open{transform:rotate(180deg)}
+  #historyCollapseContainer{display:none;margin-top:14px;border-top:1px solid var(--border);padding-top:14px}
+  .history-line{display:flex;justify-content:space-between;gap:10px;align-items:baseline;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid rgba(245,200,66,.08)}
+  .history-line:last-child{border-bottom:none}
+  .history-q{font-family:'Space Mono',monospace;color:var(--text);font-size:.9rem}
+  .history-meta{color:var(--muted);font-size:.8rem;font-style:italic}
+  .history-ok{color:var(--teal);font-family:'Space Mono',monospace;font-weight:700}
+  .history-bad{color:#e05c2a;font-family:'Space Mono',monospace;font-weight:700}
+
   .hidden{display:none !important;}
 
   /* iPad/mobile answer-box tuning: keep the field compact and avoid iOS zoom. */
@@ -372,9 +387,21 @@
           </div>
           <div id="feedback" class="small"></div>
         </div>
-        <div class="panel">
-          <div><strong>Celebration</strong></div>
-          <div class="icons" id="icons"></div>
+
+      </div>
+    </div>
+
+    <div class="card history-card" id="historyCard">
+      <div class="history-header" onclick="toggleAttemptHistory()">
+        <div class="history-title">
+          <span>📜 Spell Book — Match History</span>
+          <span id="historyChevron">▼</span>
+        </div>
+        <button style="margin-top:0" onclick="event.stopPropagation(); clearAttemptHistory()">✕ Clear History</button>
+      </div>
+      <div id="historyCollapseContainer">
+        <div id="historyLines">
+          <div style="color:var(--muted);font-style:italic;font-size:.9rem">No attempts yet — answer a question to record your first entry!</div>
         </div>
       </div>
     </div>
@@ -669,6 +696,7 @@ function iconSpark(c1,c2){
   s.appendChild(p); return s;
 }
 function celebrate(n,c1,c2){
+  if(!els.icons) return;
   els.icons.innerHTML='';
   const k=Math.min(n,40);
   for(let i=0;i<k;i++){
@@ -755,7 +783,7 @@ function resetBoard(){
   state.q={type:mode, a:null,b:null,op:mode==='addsub'?'add':mode, text:'',ans:null, askedAt:null};
   els.pos.textContent='–';
   els.question.textContent='No question—catch the Quaffle first.';
-  els.answer.value=''; els.feed.textContent=''; els.icons.innerHTML='';
+  els.answer.value=''; els.feed.textContent=''; if(els.icons) els.icons.innerHTML='';
 
   const w = els.field.clientWidth, h = els.field.clientHeight, pad = 10, size=54;
   qx = randInt(pad, Math.max(pad, w - size - pad));
@@ -829,6 +857,7 @@ function playerShoot(){
     msToAnswer: elapsedMs
   });
   try { localStorage.setItem('quidditch_results', JSON.stringify(results)); } catch(e){}
+  renderAttemptHistory();
 
   if(correct){
     state.player.score += 1; els.pScore.textContent = state.player.score;
@@ -978,6 +1007,54 @@ function buildSummary(rows){
   });
   return lines.join('\n');
 }
+function opLabel(op){
+  if(op==='mul') return '×';
+  if(op==='div') return '÷';
+  if(op==='add') return '+';
+  if(op==='sub') return '−';
+  return op || '';
+}
+function renderAttemptHistory(){
+  const lines = $('historyLines');
+  if(!lines) return;
+  if(!results || results.length===0){
+    lines.innerHTML = '<div style="color:var(--muted);font-style:italic;font-size:.9rem">No attempts yet — answer a question to record your first entry!</div>';
+    return;
+  }
+  const recent = results.slice().reverse().slice(0, 30);
+  lines.innerHTML = recent.map(r=>{
+    const raw = (r.userAnswer==='' || r.userAnswer==null) ? 'blank' : r.userAnswer;
+    const parsed = (r.parsed==null || Number.isNaN(r.parsed)) ? raw : r.parsed;
+    const correctClass = r.correct ? 'history-ok' : 'history-bad';
+    const mark = r.correct ? '✓' : '✗';
+    const answerNote = r.correct ? '' : ` <span class="history-meta">(answer ${r.correctAnswer})</span>`;
+    const date = r.time ? new Date(r.time) : null;
+    const time = date && !isNaN(date) ? date.toLocaleTimeString([], {hour:'numeric', minute:'2-digit'}) : '';
+    const mode = r.mode ? String(r.mode).replace('mixed4','mixed').replace('addsub','add/sub') : '';
+    return `<div class="history-line">
+      <div>
+        <div class="history-q">${r.prompt} → you: ${parsed} <span class="${correctClass}">${mark}</span>${answerNote}</div>
+        <div class="history-meta">${mode}${time ? ' · ' + time : ''}${r.msToAnswer ? ' · ' + Math.round(r.msToAnswer/1000) + ' sec' : ''}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+function toggleAttemptHistory(){
+  const box = $('historyCollapseContainer');
+  const chev = $('historyChevron');
+  if(!box) return;
+  const opening = box.style.display === 'none' || box.style.display === '';
+  box.style.display = opening ? 'block' : 'none';
+  if(chev) chev.classList.toggle('open', opening);
+}
+function clearAttemptHistory(){
+  if(confirm('Erase all stored attempts and reset the log?')){
+    results = [];
+    try { localStorage.removeItem('quidditch_results'); } catch(e){}
+    renderAttemptHistory();
+  }
+}
+
 function download(filename, text){
   const blob = new Blob([text], {type:'text/plain'});
   const a = document.createElement('a');
@@ -1013,11 +1090,7 @@ els.emailReportBtn.addEventListener('click', ()=>{
 /* ===== Clear History Button ===== */
 els.clearHistoryBtn = $('clearHistoryBtn');
 els.clearHistoryBtn.addEventListener('click', ()=>{
-  if(confirm("Erase all stored attempts and reset the log?")){
-    results = [];
-    try { localStorage.removeItem('quidditch_results'); } catch(e){}
-    alert('History cleared!');
-  }
+  clearAttemptHistory();
 });
 
 /* ===== Init ===== */
@@ -1028,6 +1101,7 @@ try {
   if(Array.isArray(saved)) results = saved;
 } catch(e){}
 updateModeUI();
+renderAttemptHistory();
 </script>
 </body>
 </html>
