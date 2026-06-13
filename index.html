@@ -253,7 +253,7 @@
       <div class="subtitle">A Wizarding Arithmetic Match</div>
       <div class="house-rule"></div>
     </div>
-    <p class="subtitle">Catch the Quaffle in the top field, then answer to score. Choose <strong>Multiplication</strong>, <strong>Division</strong> (whole-number answers), <strong>Add/Sub</strong>, or <strong>Mixed Spells</strong> across +, −, ×, and ÷. Includes <strong>Zero Facts</strong> and <strong>Tens Facts</strong> modes.</p>
+    <p class="subtitle">Catch the Quaffle in the top field, then answer to score. Choose <strong>Multiplication</strong>, <strong>Division</strong> (whole-number answers), <strong>Add/Sub</strong>, <strong>Equivalence</strong>, <strong>Mixed Spells</strong> across +, −, ×, ÷, or <strong>Equivalence with Mixed Spells</strong>. Includes <strong>Zero Facts</strong> and <strong>Tens Facts</strong> modes.</p>
 
     <div class="row">
       <label>Player House:
@@ -292,7 +292,9 @@
           <option value="addsub">Add/Sub</option>
           <option value="zero">Zero Facts (×0 & 0÷N)</option>
           <option value="tens">Tens Facts (×10 & ÷10)</option>
-          <option value="mixed4" selected>Mixed Spells (+, −, ×, ÷)</option>
+          <option value="equivalence">Equivalence (=)</option>
+          <option value="mixed4">Mixed Spells (+, −, ×, ÷)</option>
+          <option value="mixedEq" selected>Equivalence with Mixed Spells (+, −, ×, ÷, =)</option>
         </select>
       </label>
 
@@ -494,6 +496,10 @@ const WIZARD_WRONG = [
 ];
 function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
 function spellQuestionLine(q){
+  if(q.op === 'eq'){
+    const eqText = q.text.replace('__', 'blank').replace(/=/g, 'equals').replace(/\+/g, 'plus');
+    return `${pick(WIZARD_PREFIXES)} what is the missing number that completes this spell? ${eqText}`;
+  }
   const text = q.op==='mul' ? `${q.a} times ${q.b}`
              : q.op==='div' ? `${q.a} divided by ${q.b}`
              : q.text.replace('−','minus').replace('+','plus');
@@ -546,9 +552,24 @@ function wordToNum(tok){
   const n=+tok; return Number.isFinite(n)? n : null;
 }
 
-/* ===== Problem generation (added Zero & Tens modes) ===== */
+/* ===== Problem generation (added Zero, Tens, Equivalence, and Equivalence+Mixed modes) ===== */
+function makeEquivalenceQuestion(max){
+  max = Math.max(6, max || 10);
+  let a, b, c, ans, total;
+  let guard = 0;
+  do {
+    a = randInt(0, max);
+    b = randInt(0, max);
+    total = a + b;
+    c = randInt(0, Math.min(max, total));
+    ans = total - c;
+    guard++;
+  } while ((ans < 0 || ans > max || c === a || guard < 2 && ans === b) && guard < 50);
+  return {type:'equivalence', op:'eq', a, b, c, ans, text:`${a} + ${b} = ${c} + __`};
+}
+
 function newQuestion(){
-  const mode = els.mode.value; // 'mul' | 'div' | 'addsub' | 'zero' | 'tens' | 'mixed4'
+  const mode = els.mode.value; // 'mul' | 'div' | 'addsub' | 'zero' | 'tens' | 'equivalence' | 'mixed4' | 'mixedEq'
 
   if(mode === 'mul'){
     const max = parseInt(els.mulDiff.value, 10) || 5;
@@ -593,11 +614,20 @@ function newQuestion(){
       return {type:'tens', op:'div', a:dividend, b:divisor, ans:a, text:`${dividend} ÷ ${divisor}`};
     }
 
-  } else if(mode === 'mixed4'){
+  } else if(mode === 'equivalence'){
+    return makeEquivalenceQuestion(12);
+
+  } else if(mode === 'mixed4' || mode === 'mixedEq'){
     const diff = parseInt(els.mixedDiff.value, 10) || 1;
-    const op = ['add','sub','mul','div'][randInt(0,3)];
+    const opChoices = mode === 'mixedEq' ? ['add','sub','mul','div','eq'] : ['add','sub','mul','div'];
+    const op = opChoices[randInt(0, opChoices.length - 1)];
     let a,b,ans,text;
-    if(op === 'mul'){
+    if(op === 'eq'){
+      const max = diff===1 ? 10 : diff===2 ? 25 : 50;
+      const q = makeEquivalenceQuestion(max);
+      q.type = 'mixedEq';
+      return q;
+    }else if(op === 'mul'){
       const max = diff===1 ? 5 : diff===2 ? 10 : 12;
       a = randInt(1, max); b = randInt(1, max); ans = a*b; text = `${a} × ${b}`;
     }else if(op === 'div'){
@@ -615,7 +645,7 @@ function newQuestion(){
         ans = a+b; text = `${a} + ${b}`;
       }
     }
-    return {type:'mixed4', op, a, b, ans, text};
+    return {type:mode, op, a, b, ans, text};
 
   } else {
     const opSel = els.op.value;
@@ -810,7 +840,9 @@ function giveQuaffle(to){
     state.q = newQuestion();
     state.q.askedAt = performance.now();
     const speakLine = `You have seized the Quaffle. ${spellQuestionLine(state.q)}`;
-    els.question.textContent = `You caught the Quaffle! What is ${state.q.text}?`;
+    els.question.textContent = state.q.op === 'eq'
+      ? `You caught the Quaffle! What is the missing number that completes this spell? ${state.q.text}`
+      : `You caught the Quaffle! What is ${state.q.text}?`;
     if(els.annQ.checked) sayQ(speakLine);
     // On iPad/tablets, do not summon the large keyboard automatically; let the player tap the box when ready.
     if(!isTouchDevice()) els.answer.focus();
@@ -849,7 +881,7 @@ function playerShoot(){
     time: nowISO(),
     mode: state.q.type,
     prompt: state.q.text,
-    a: state.q.a, b: state.q.b, op: state.q.op,
+    a: state.q.a, b: state.q.b, c: state.q.c ?? null, op: state.q.op,
     userAnswer: raw,
     parsed: Number.isFinite(val) ? val : null,
     correctAnswer: state.q.ans,
@@ -861,11 +893,14 @@ function playerShoot(){
 
   if(correct){
     state.player.score += 1; els.pScore.textContent = state.player.score;
-    els.feed.textContent = `Goal! ${state.q.text} = ${state.q.ans}`;
+    els.feed.textContent = state.q.op === 'eq'
+      ? `Goal! ${state.q.text.replace('?', state.q.ans)}`
+      : `Goal! ${state.q.text} = ${state.q.ans}`;
     celebrate(12, HOUSE[state.player.house].c1, HOUSE[state.player.house].c2);
     if(els.annQ.checked){
       if(state.q.op==='mul') sayQ(`${pick(WIZARD_CORRECT)} ${state.q.a} times ${state.q.b} equals ${state.q.ans}.`);
       else if(state.q.op==='div') sayQ(`${pick(WIZARD_CORRECT)} ${state.q.a} divided by ${state.q.b} equals ${state.q.ans}.`);
+      else if(state.q.op==='eq') sayQ(`${pick(WIZARD_CORRECT)} ${state.q.text.replace('?', state.q.ans).replace(/=/g, 'equals').replace(/\+/g, 'plus')}.`);
       else sayQ(`${pick(WIZARD_CORRECT)} ${state.q.text.replace('−','minus').replace('+','plus')} equals ${state.q.ans}.`);
     } else { sayPlay(`A blazing goal for ${HOUSE[state.player.house].name}!`); }
   }else{
@@ -941,7 +976,8 @@ function updateModeUI(){
   const isAddSub = mode === 'addsub';
   const isZero = mode === 'zero';
   const isTens = mode === 'tens';
-  const isMixed = mode === 'mixed4';
+  const isEquivalence = mode === 'equivalence';
+  const isMixed = mode === 'mixed4' || mode === 'mixedEq';
 
   // Show/hide control groups
   els.mulBox.classList.toggle('hidden', !(isMul || isZero));   // Zero uses mulDiff for N×0
@@ -960,6 +996,10 @@ function updateModeUI(){
     els.answer.placeholder = "Zero Facts: type 0";
   }else if(isTens){
     els.answer.placeholder = "Tens Facts: type just the answer";
+  }else if(isEquivalence){
+    els.answer.placeholder = "Equivalence: type the missing number";
+  }else if(mode === 'mixedEq'){
+    els.answer.placeholder = "Mixed + Equivalence: type just the answer or missing number";
   }else if(isMixed){
     els.answer.placeholder = "Mixed Spells: type just the answer";
   }else{
@@ -981,7 +1021,7 @@ function toCSV(rows){
     const s = String(v).replace(/"/g,'""');
     return /[",\n]/.test(s) ? `"${s}"` : s;
   };
-  const header = ["time","mode","prompt","a","b","op","userAnswer","parsed","correctAnswer","correct","msToAnswer"];
+  const header = ["time","mode","prompt","a","b","c","op","userAnswer","parsed","correctAnswer","correct","msToAnswer"];
   const body = rows.map(r => header.map(k => esc(r[k])).join(','));
   return [header.join(','), ...body].join('\n');
 }
@@ -1012,6 +1052,7 @@ function opLabel(op){
   if(op==='div') return '÷';
   if(op==='add') return '+';
   if(op==='sub') return '−';
+  if(op==='eq') return '=';
   return op || '';
 }
 function renderAttemptHistory(){
@@ -1030,7 +1071,7 @@ function renderAttemptHistory(){
     const answerNote = r.correct ? '' : ` <span class="history-meta">(answer ${r.correctAnswer})</span>`;
     const date = r.time ? new Date(r.time) : null;
     const time = date && !isNaN(date) ? date.toLocaleTimeString([], {hour:'numeric', minute:'2-digit'}) : '';
-    const mode = r.mode ? String(r.mode).replace('mixed4','mixed').replace('addsub','add/sub') : '';
+    const mode = r.mode ? String(r.mode).replace('mixedEq','mixed + equivalence').replace('mixed4','mixed').replace('addsub','add/sub').replace('equivalence','equivalence') : '';
     return `<div class="history-line">
       <div>
         <div class="history-q">${r.prompt} → you: ${parsed} <span class="${correctClass}">${mark}</span>${answerNote}</div>
