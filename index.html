@@ -357,7 +357,7 @@
       <label>Voice:
         <select id="voiceSel"><option value="">Default</option></select>
       </label>
-      <label>Rate <input id="rate" type="number" min="0.5" max="1.5" step="0.05" value="1.0" style="width:70px"></label>
+      <label>Rate <input id="rate" type="number" min="0.5" max="1.5" step="0.05" value="0.8" style="width:70px"></label>
 
       <button id="startBtn">🏁 Start Match</button>
       <button id="stopBtn" disabled>⛔ Stop</button>
@@ -459,6 +459,14 @@ function loadVoices(){
   VOICES.list = speechSynthesis.getVoices();
   els.voiceSel.innerHTML = '<option value="">Default</option>' +
     VOICES.list.map((v,i)=>`<option value="${i}">${v.name} (${v.lang})</option>`).join('');
+
+  // Prefer Daniel, then Google UK English Male, when available.
+  const preferredIndex = VOICES.list.findIndex(v =>
+    v.name.includes('Daniel') || v.name.includes('Google UK English Male')
+  );
+  if(preferredIndex >= 0) {
+    els.voiceSel.value = String(preferredIndex);
+  }
 }
 if('speechSynthesis' in window){
   speechSynthesis.onvoiceschanged = loadVoices; loadVoices();
@@ -466,11 +474,26 @@ if('speechSynthesis' in window){
 function speak(text){
   if(!('speechSynthesis' in window)) return;
   const u = new SpeechSynthesisUtterance(text);
-  const rate = Math.max(0.5, Math.min(1.5, parseFloat(els.rate.value||'1')));
+
+  // Match the Fractions at Hogwarts announcer settings.
+  const rate = Math.max(0.5, Math.min(1.5, parseFloat(els.rate.value || '0.8')));
   u.rate = rate;
+  u.pitch = 1.2;
+  u.lang = 'en-US';
+
   const idx = els.voiceSel.value;
-  if(idx !== ''){ const v = VOICES.list[+idx]; if(v) u.voice = v; }
-  speechSynthesis.cancel(); speechSynthesis.speak(u);
+  if(idx !== ''){
+    const v = VOICES.list[+idx];
+    if(v) u.voice = v;
+  } else {
+    const preferred = VOICES.list.find(v =>
+      v.name.includes('Daniel') || v.name.includes('Google UK English Male')
+    );
+    if(preferred) u.voice = preferred;
+  }
+
+  speechSynthesis.cancel();
+  speechSynthesis.speak(u);
 }
 const WIZARD_PREFIXES = [
   'By the old runes,',
